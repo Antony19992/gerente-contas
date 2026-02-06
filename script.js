@@ -120,3 +120,11 @@ function limparFormulario() {
   document.getElementById("vencimento").value = "";
   document.getElementById("fixa").checked = false;
 }
+
+// ============================
+// CONTROLE DE ABAS
+// ============================
+function openTab(tabId) {
+  document.querySelectorAll(".tab").forEach(t => t.style.display = "none");
+  document.getElementById(tabId).style.display = "block";
+}
