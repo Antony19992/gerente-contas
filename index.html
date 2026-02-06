@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Controle de Contas</title>
+
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script src="script.js" defer></script>
+</head>
+
+<body>
+
+<header>
+Controle de Contas
+</header>
+
+<main>
+
+<!-- ================= ABA NOVA CONTA ================= -->
+
+<section id="tab-add" class="tab active">
+
+<h2>Nova Conta</h2>
+
+<input id="desc" placeholder="Descrição">
+
+<input id="valor" type="number" step="0.01" placeholder="Valor">
+
+<input id="vencimento" type="date">
+
+<label class="check">
+<input type="checkbox" id="fixa">
+Conta fixa (gera todo mês)
+</label>
+
+<button onclick="addConta()">Salvar</button>
+
+</section>
+
+<!-- ================= ABA LISTAGEM ================= -->
+
+<section id="tab-list" class="tab">
+
+<h2>Minhas Contas</h2>
+
+<div id="lista"></div>
+
+</section>
+
+</main>
+
+<!-- ================= MENU INFERIOR ================= -->
+
+<nav>
+
+<button onclick="openTab('tab-add')">➕</button>
+<button onclick="openTab('tab-list')">📋</button>
+
+</nav>
+
+</body>
+</html>
