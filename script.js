@@ -190,7 +190,7 @@ function renderGrupo(titulo, lista){
           <span>Venc: ${formatDate(c[3])}</span>
         </div>
 
-        ${c[5]==0 ? `<button onclick="pagar(${c[0]})">Pagar</button>`:""}
+        ${c[5]==0 ? `<button onclick="pagar(${c[0]})">Marcar como pago</button>`:""}
       </div>
     `;
   });
