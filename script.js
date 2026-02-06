@@ -4,8 +4,7 @@
 const SUPABASE_URL = "https://nidtmahrtqkanpgbnkss.supabase.co";
 const SUPABASE_KEY = "sb_publishable_o2ER95WiJiKbeS1ax0SRKA_3yDQEMBC";
 
-const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ============================
 // HELPERS
 // ============================
@@ -124,7 +123,12 @@ function limparFormulario() {
 // ============================
 // CONTROLE DE ABAS
 // ============================
-function openTab(tabId) {
-  document.querySelectorAll(".tab").forEach(t => t.style.display = "none");
-  document.getElementById(tabId).style.display = "block";
-}
+
+window.openTab = function(tabId) {
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.style.display = "none";
+  });
+
+  const el = document.getElementById(tabId);
+  if (el) el.style.display = "block";
+};
