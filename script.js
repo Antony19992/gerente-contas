@@ -14,6 +14,12 @@ function mesLabel(dateStr) {
   return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
+function statusClass(conta) {
+  if (conta.paga) return "paga";
+  if (conta.vencimento && new Date(conta.vencimento) < new Date()) return "atrasada";
+  return "aberta";
+}
+
 // ============================
 // LOAD
 // ============================
@@ -43,8 +49,8 @@ async function addConta() {
         valor,
         vencimento,
         fixa,
-        status: "aberta",
-        paga: false
+        paga: false,
+        mes: mesLabel(vencimento)
       }
     ]);
 
@@ -81,12 +87,10 @@ async function carregarContas() {
 async function pagarConta(id) {
   const { error } = await supabaseClient
     .from("contas")
-    .update({ status: "paga", paga: true })
+    .update({ paga: true })
     .eq("id", id);
 
-  if (error) {
-    console.error(error);
-  }
+  if (error) console.error(error);
   carregarContas();
 }
 
@@ -99,9 +103,7 @@ async function excluirConta(id) {
     .delete()
     .eq("id", id);
 
-  if (error) {
-    console.error(error);
-  }
+  if (error) console.error(error);
   carregarContas();
 }
 
@@ -131,7 +133,7 @@ function renderizar(contas) {
 
     grupos[mes].forEach(c => {
       const card = document.createElement("div");
-      card.className = `card-conta ${c.status}`;
+      card.className = `card-conta ${statusClass(c)}`;
 
       const info = document.createElement("div");
       info.className = "info";
@@ -144,7 +146,7 @@ function renderizar(contas) {
       const acoes = document.createElement("div");
       acoes.className = "acoes";
 
-      if (c.status !== "paga") {
+      if (!c.paga) {
         const btnPagar = document.createElement("button");
         btnPagar.textContent = "Pagar";
         btnPagar.onclick = () => pagarConta(c.id);
