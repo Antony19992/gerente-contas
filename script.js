@@ -3,15 +3,15 @@
 // ============================
 const SUPABASE_URL = "https://nidtmahrtqkanpgbnkss.supabase.co";
 const SUPABASE_KEY = "sb_publishable_o2ER95WiJiKbeS1ax0SRKA_3yDQEMBC";
-
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ============================
 // HELPERS
 // ============================
-function mesAtual() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+function mesLabel(dateStr) {
+  if (!dateStr) return "Sem vencimento";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
 // ============================
@@ -26,12 +26,12 @@ document.addEventListener("DOMContentLoaded", () => {
 // ============================
 async function addConta() {
   const descricao = document.getElementById("descricao").value;
-  const valor = document.getElementById("valor").value;
+  const valor = parseFloat(document.getElementById("valor").value);
   const vencimento = document.getElementById("vencimento").value;
   const fixa = document.getElementById("fixa").checked;
 
-  if (!descricao || !valor) {
-    alert("Preencha descrição e valor.");
+  if (!descricao || !valor || !vencimento) {
+    alert("Preencha todos os campos!");
     return;
   }
 
@@ -41,10 +41,10 @@ async function addConta() {
       {
         descricao,
         valor,
-        vencimento: vencimento || null,
+        vencimento,
         fixa,
-        paga: false,
-        mes: mesAtual()
+        status: "aberta",
+        paga: false
       }
     ]);
 
@@ -54,6 +54,7 @@ async function addConta() {
   } else {
     limparFormulario();
     carregarContas();
+    openTab("tab-list");
   }
 }
 
@@ -64,7 +65,7 @@ async function carregarContas() {
   const { data, error } = await supabaseClient
     .from("contas")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("vencimento", { ascending: true });
 
   if (error) {
     console.error(error);
@@ -78,11 +79,29 @@ async function carregarContas() {
 // PAGAR CONTA
 // ============================
 async function pagarConta(id) {
-  await supabaseClient
+  const { error } = await supabaseClient
     .from("contas")
-    .update({ paga: true })
+    .update({ status: "paga", paga: true })
     .eq("id", id);
 
+  if (error) {
+    console.error(error);
+  }
+  carregarContas();
+}
+
+// ============================
+// EXCLUIR CONTA
+// ============================
+async function excluirConta(id) {
+  const { error } = await supabaseClient
+    .from("contas")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+  }
   carregarContas();
 }
 
@@ -93,22 +112,57 @@ function renderizar(contas) {
   const lista = document.getElementById("listaContas");
   lista.innerHTML = "";
 
+  // Agrupar por mês
+  const grupos = {};
   contas.forEach(c => {
-    const card = document.createElement("div");
-    card.className = "card";
-
-    if (c.paga) card.classList.add("paga");
-
-    card.innerHTML = `
-      <h3>${c.descricao}</h3>
-      <p>R$ ${parseFloat(c.valor).toFixed(2)}</p>
-      <p>Vencimento: ${c.vencimento || "não informado"}</p>
-      <p>Tipo: ${c.fixa ? "Fixa" : "Avulsa"}</p>
-      ${!c.paga ? `<button onclick="pagarConta('${c.id}')">Pagar</button>` : ""}
-    `;
-
-    lista.appendChild(card);
+    const mes = mesLabel(c.vencimento);
+    if (!grupos[mes]) grupos[mes] = [];
+    grupos[mes].push(c);
   });
+
+  for (const mes in grupos) {
+    const header = document.createElement("div");
+    header.className = "mes-header";
+    header.textContent = mes;
+    lista.appendChild(header);
+
+    const body = document.createElement("div");
+    body.className = "mes-body";
+
+    grupos[mes].forEach(c => {
+      const card = document.createElement("div");
+      card.className = `card-conta ${c.status}`;
+
+      const info = document.createElement("div");
+      info.className = "info";
+      info.innerHTML = `
+        <span>${c.descricao}</span>
+        <span>R$ ${parseFloat(c.valor).toFixed(2)} - Vencimento: ${c.vencimento ? new Date(c.vencimento).toLocaleDateString("pt-BR") : "não informado"}</span>
+        <span>${c.fixa ? "Conta fixa" : "Conta avulsa"}</span>
+      `;
+
+      const acoes = document.createElement("div");
+      acoes.className = "acoes";
+
+      if (c.status !== "paga") {
+        const btnPagar = document.createElement("button");
+        btnPagar.textContent = "Pagar";
+        btnPagar.onclick = () => pagarConta(c.id);
+        acoes.appendChild(btnPagar);
+      }
+
+      const btnExcluir = document.createElement("button");
+      btnExcluir.textContent = "Excluir";
+      btnExcluir.onclick = () => excluirConta(c.id);
+      acoes.appendChild(btnExcluir);
+
+      card.appendChild(info);
+      card.appendChild(acoes);
+      body.appendChild(card);
+    });
+
+    lista.appendChild(body);
+  }
 }
 
 // ============================
@@ -125,105 +179,6 @@ function limparFormulario() {
 // CONTROLE DE ABAS
 // ==============================
 function openTab(tabId) {
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    document.getElementById(tabId).classList.add("active");
-}
-
-// ==============================
-// LISTA DE CONTAS
-// ==============================
-let contas = [];
-
-function addConta() {
-    const descricao = document.getElementById("descricao").value;
-    const valor = parseFloat(document.getElementById("valor").value);
-    const vencimento = document.getElementById("vencimento").value;
-    const fixa = document.getElementById("fixa").checked;
-
-    if (!descricao || !valor || !vencimento) {
-        alert("Preencha todos os campos!");
-        return;
-    }
-
-    contas.push({
-        descricao,
-        valor,
-        vencimento,
-        fixa,
-        status: "aberta"
-    });
-
-    renderContas();
-    openTab("tab-list");
-
-    // limpar campos
-    document.getElementById("descricao").value = "";
-    document.getElementById("valor").value = "";
-    document.getElementById("vencimento").value = "";
-    document.getElementById("fixa").checked = false;
-}
-
-// ==============================
-// RENDERIZAÇÃO
-// ==============================
-function renderContas() {
-    const lista = document.getElementById("listaContas");
-    lista.innerHTML = "";
-
-    // Agrupar por mês
-    const grupos = {};
-    contas.forEach(c => {
-        const mes = new Date(c.vencimento).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-        if (!grupos[mes]) grupos[mes] = [];
-        grupos[mes].push(c);
-    });
-
-    // Criar HTML
-    for (const mes in grupos) {
-        const header = document.createElement("div");
-        header.className = "mes-header";
-        header.textContent = mes;
-        lista.appendChild(header);
-
-        const body = document.createElement("div");
-        body.className = "mes-body";
-
-        grupos[mes].forEach(c => {
-            const card = document.createElement("div");
-            card.className = `card-conta ${c.status}`;
-
-            const info = document.createElement("div");
-            info.className = "info";
-            info.innerHTML = `
-                <span>${c.descricao}</span>
-                <span>R$ ${c.valor.toFixed(2)} - Vencimento: ${new Date(c.vencimento).toLocaleDateString("pt-BR")}</span>
-            `;
-
-            const acoes = document.createElement("div");
-            acoes.className = "acoes";
-
-            const btnPagar = document.createElement("button");
-            btnPagar.textContent = "Pagar";
-            btnPagar.onclick = () => {
-                c.status = "paga";
-                renderContas();
-            };
-
-            const btnExcluir = document.createElement("button");
-            btnExcluir.textContent = "Excluir";
-            btnExcluir.onclick = () => {
-                contas = contas.filter(x => x !== c);
-                renderContas();
-            };
-
-            acoes.appendChild(btnPagar);
-            acoes.appendChild(btnExcluir);
-
-            card.appendChild(info);
-            card.appendChild(acoes);
-            body.appendChild(card);
-        });
-
-        lista.appendChild(body);
-    }
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.getElementById(tabId).classList.add("active");
 }
