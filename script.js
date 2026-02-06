@@ -15,9 +15,9 @@ function mesLabel(dateStr) {
 }
 
 function statusClass(conta) {
-  if (conta.paga) return "paga";
-  if (conta.vencimento && new Date(conta.vencimento) < new Date()) return "atrasada";
-  return "aberta";
+  if (conta.paga) return "paga"; // verde
+  if (conta.vencimento && new Date(conta.vencimento) < new Date()) return "atrasada"; // vermelho
+  return "aberta"; // amarelo
 }
 
 // ============================
@@ -114,7 +114,21 @@ function renderizar(contas) {
   const lista = document.getElementById("listaContas");
   lista.innerHTML = "";
 
-  // Agrupar por mês
+  const abertas = contas.filter(c => !c.paga);
+  const pagas = contas.filter(c => c.paga);
+
+  renderizarGrupo(abertas, lista, "Contas em aberto / atrasadas");
+  renderizarGrupo(pagas, lista, "Contas pagas");
+}
+
+function renderizarGrupo(contas, lista, titulo) {
+  if (contas.length === 0) return;
+
+  const tituloDiv = document.createElement("div");
+  tituloDiv.className = "grupo-titulo";
+  tituloDiv.textContent = titulo;
+  lista.appendChild(tituloDiv);
+
   const grupos = {};
   contas.forEach(c => {
     const mes = mesLabel(c.vencimento);
