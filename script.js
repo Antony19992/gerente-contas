@@ -5,6 +5,7 @@ const SUPABASE_URL = "https://nidtmahrtqkanpgbnkss.supabase.co";
 const SUPABASE_KEY = "sb_publishable_o2ER95WiJiKbeS1ax0SRKA_3yDQEMBC";
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 // ============================
 // HELPERS
 // ============================
@@ -34,7 +35,7 @@ async function addConta() {
     return;
   }
 
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from("contas")
     .insert([
       {
@@ -60,7 +61,7 @@ async function addConta() {
 // LISTAR CONTAS
 // ============================
 async function carregarContas() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("contas")
     .select("*")
     .order("created_at", { ascending: false });
@@ -77,7 +78,7 @@ async function carregarContas() {
 // PAGAR CONTA
 // ============================
 async function pagarConta(id) {
-  await supabase
+  await supabaseClient
     .from("contas")
     .update({ paga: true })
     .eq("id", id);
@@ -123,7 +124,6 @@ function limparFormulario() {
 // ============================
 // CONTROLE DE ABAS
 // ============================
-
 window.openTab = function(tabId) {
   document.querySelectorAll(".tab").forEach(tab => {
     tab.style.display = "none";
