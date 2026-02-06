@@ -121,14 +121,109 @@ function limparFormulario() {
   document.getElementById("fixa").checked = false;
 }
 
-// ============================
+// ==============================
 // CONTROLE DE ABAS
-// ============================
-window.openTab = function(tabId) {
-  document.querySelectorAll(".tab").forEach(tab => {
-    tab.style.display = "none";
-  });
+// ==============================
+function openTab(tabId) {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.getElementById(tabId).classList.add("active");
+}
 
-  const el = document.getElementById(tabId);
-  if (el) el.style.display = "block";
-};
+// ==============================
+// LISTA DE CONTAS
+// ==============================
+let contas = [];
+
+function addConta() {
+    const descricao = document.getElementById("descricao").value;
+    const valor = parseFloat(document.getElementById("valor").value);
+    const vencimento = document.getElementById("vencimento").value;
+    const fixa = document.getElementById("fixa").checked;
+
+    if (!descricao || !valor || !vencimento) {
+        alert("Preencha todos os campos!");
+        return;
+    }
+
+    contas.push({
+        descricao,
+        valor,
+        vencimento,
+        fixa,
+        status: "aberta"
+    });
+
+    renderContas();
+    openTab("tab-list");
+
+    // limpar campos
+    document.getElementById("descricao").value = "";
+    document.getElementById("valor").value = "";
+    document.getElementById("vencimento").value = "";
+    document.getElementById("fixa").checked = false;
+}
+
+// ==============================
+// RENDERIZAÇÃO
+// ==============================
+function renderContas() {
+    const lista = document.getElementById("listaContas");
+    lista.innerHTML = "";
+
+    // Agrupar por mês
+    const grupos = {};
+    contas.forEach(c => {
+        const mes = new Date(c.vencimento).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+        if (!grupos[mes]) grupos[mes] = [];
+        grupos[mes].push(c);
+    });
+
+    // Criar HTML
+    for (const mes in grupos) {
+        const header = document.createElement("div");
+        header.className = "mes-header";
+        header.textContent = mes;
+        lista.appendChild(header);
+
+        const body = document.createElement("div");
+        body.className = "mes-body";
+
+        grupos[mes].forEach(c => {
+            const card = document.createElement("div");
+            card.className = `card-conta ${c.status}`;
+
+            const info = document.createElement("div");
+            info.className = "info";
+            info.innerHTML = `
+                <span>${c.descricao}</span>
+                <span>R$ ${c.valor.toFixed(2)} - Vencimento: ${new Date(c.vencimento).toLocaleDateString("pt-BR")}</span>
+            `;
+
+            const acoes = document.createElement("div");
+            acoes.className = "acoes";
+
+            const btnPagar = document.createElement("button");
+            btnPagar.textContent = "Pagar";
+            btnPagar.onclick = () => {
+                c.status = "paga";
+                renderContas();
+            };
+
+            const btnExcluir = document.createElement("button");
+            btnExcluir.textContent = "Excluir";
+            btnExcluir.onclick = () => {
+                contas = contas.filter(x => x !== c);
+                renderContas();
+            };
+
+            acoes.appendChild(btnPagar);
+            acoes.appendChild(btnExcluir);
+
+            card.appendChild(info);
+            card.appendChild(acoes);
+            body.appendChild(card);
+        });
+
+        lista.appendChild(body);
+    }
+}
