@@ -15,20 +15,29 @@ function mesLabel(dateStr) {
 }
 
 function statusClass(conta) {
-  if (conta.paga) return "paga"; // verde
-  if (conta.vencimento && new Date(conta.vencimento) < new Date()) return "atrasada"; // vermelho
-  return "aberta"; // amarelo
+  if (conta.paga) return "paga";
+  if (conta.vencimento && new Date(conta.vencimento) < new Date()) return "atrasada";
+  return "aberta";
+}
+
+function primeiroDiaProximoMes() {
+  const hoje = new Date();
+  const ano = hoje.getMonth() === 11 ? hoje.getFullYear() + 1 : hoje.getFullYear();
+  const mes = hoje.getMonth() === 11 ? 0 : hoje.getMonth() + 1;
+  return new Date(ano, mes, 1);
 }
 
 // ============================
 // LOAD
 // ============================
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  await gerarFixasProximoMes();
   carregarContas();
+  carregarEntradas();
 });
 
 // ============================
-// ADICIONAR CONTA
+// CONTAS
 // ============================
 async function addConta() {
   const descricao = document.getElementById("descricao").value;
@@ -43,30 +52,18 @@ async function addConta() {
 
   const { error } = await supabaseClient
     .from("contas")
-    .insert([
-      {
-        descricao,
-        valor,
-        vencimento,
-        fixa,
-        paga: false,
-        mes: mesLabel(vencimento)
-      }
-    ]);
+    .insert([{ descricao, valor, vencimento, fixa, paga: false, mes: mesLabel(vencimento) }]);
 
   if (error) {
     alert("Erro ao salvar conta");
     console.error(error);
   } else {
-    limparFormulario();
+    limparFormularioConta();
     carregarContas();
     openTab("tab-list");
   }
 }
 
-// ============================
-// LISTAR CONTAS
-// ============================
 async function carregarContas() {
   const { data, error } = await supabaseClient
     .from("contas")
@@ -77,51 +74,33 @@ async function carregarContas() {
     console.error(error);
     return;
   }
-
-  renderizar(data);
+  renderizarContas(data);
 }
 
-// ============================
-// PAGAR CONTA
-// ============================
 async function pagarConta(id) {
-  const { error } = await supabaseClient
-    .from("contas")
-    .update({ paga: true })
-    .eq("id", id);
-
+  const { error } = await supabaseClient.from("contas").update({ paga: true }).eq("id", id);
   if (error) console.error(error);
   carregarContas();
 }
 
-// ============================
-// EXCLUIR CONTA
-// ============================
 async function excluirConta(id) {
-  const { error } = await supabaseClient
-    .from("contas")
-    .delete()
-    .eq("id", id);
-
+  const { error } = await supabaseClient.from("contas").delete().eq("id", id);
   if (error) console.error(error);
   carregarContas();
 }
 
-// ============================
-// RENDER
-// ============================
-function renderizar(contas) {
+function renderizarContas(contas) {
   const lista = document.getElementById("listaContas");
   lista.innerHTML = "";
 
   const abertas = contas.filter(c => !c.paga);
   const pagas = contas.filter(c => c.paga);
 
-  renderizarGrupo(abertas, lista, "Contas em aberto / atrasadas");
-  renderizarGrupo(pagas, lista, "Contas pagas");
+  renderizarGrupoContas(abertas, lista, "Contas em aberto / atrasadas");
+  renderizarGrupoContas(pagas, lista, "Contas pagas");
 }
 
-function renderizarGrupo(contas, lista, titulo) {
+function renderizarGrupoContas(contas, lista, titulo) {
   if (contas.length === 0) return;
 
   const tituloDiv = document.createElement("div");
@@ -181,10 +160,7 @@ function renderizarGrupo(contas, lista, titulo) {
   }
 }
 
-// ============================
-// LIMPAR
-// ============================
-function limparFormulario() {
+function limparFormularioConta() {
   document.getElementById("descricao").value = "";
   document.getElementById("valor").value = "";
   document.getElementById("vencimento").value = "";
@@ -195,6 +171,119 @@ function limparFormulario() {
 // CONTROLE DE ABAS
 // ==============================
 function openTab(tabId) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  document.getElementById(tabId).classList.add("active");
+  // Remove a classe "active" de todas as abas
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.classList.remove("active");
+  });
+
+  // Adiciona a classe "active" apenas na aba selecionada
+  const target = document.getElementById(tabId);
+  if (target) {
+    target.classList.add("active");
+  }
+}
+
+
+
+async function gerarFixasProximoMes() {
+  const proximoMesData = primeiroDiaProximoMes();
+  const proximoMesLabel = mesLabel(proximoMesData.toISOString().split("T")[0]);
+
+  const { data: existentes } = await supabaseClient
+    .from("contas")
+    .select("*")
+    .eq("mes", proximoMesLabel)
+    .eq("fixa", true);
+
+  if (existentes && existentes.length > 0) return;
+
+  const { data: fixas } = await supabaseClient.from("contas").select("*").eq("fixa", true);
+
+  const novas = fixas.map(c => ({
+    descricao: c.descricao,
+    valor: c.valor,
+    vencimento: proximoMesData.toISOString().split("T")[0],
+    fixa: true,
+    paga: false,
+    mes: proximoMesLabel
+  }));
+
+  if (novas.length > 0) {
+    await supabaseClient.from("contas").insert(novas);
+  }
+}
+
+// ============================
+// ENTRADAS (GANHOS)
+// ============================
+async function addEntrada() {
+  const descricao = document.getElementById("descricaoEntrada").value;
+  const valor = parseFloat(document.getElementById("valorEntrada").value);
+  const data = document.getElementById("dataEntrada").value;
+  const fixa = document.getElementById("fixaEntrada").checked;
+
+  if (!descricao || !valor || !data) {
+    alert("Preencha todos os campos!");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("entradas")
+    .insert([{ descricao, valor, data, fixa }]);
+
+  if (error) {
+    alert("Erro ao salvar entrada");
+    console.error(error);
+  } else {
+    limparFormEntrada();
+    carregarEntradas();
+  }
+}
+
+async function carregarEntradas() {
+  const { data, error } = await supabaseClient
+    .from("entradas")
+    .select("*")
+    .order("data", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+  renderizarEntradas(data);
+}
+
+function renderizarEntradas(entradas) {
+  const lista = document.getElementById("entradas");
+  lista.innerHTML = "";
+
+  if (entradas.length === 0) {
+    lista.textContent = "Nenhuma entrada cadastrada.";
+    return;
+  }
+
+  entradas.forEach(e => {
+    const card = document.createElement("div");
+    card.className = "card-entrada";
+
+    card.innerHTML = `
+      <div class="entrada-header">
+        <h3>${e.descricao}</h3>
+        <span class="valor">R$ ${parseFloat(e.valor).toFixed(2)}</span>
+      </div>
+      <div class="entrada-body">
+        <p><strong>Data:</strong> ${new Date(e.data).toLocaleDateString("pt-BR")}</p>
+        <p><strong>Tipo:</strong> ${e.fixa ? "Renda fixa" : "Entrada avulsa"}</p>
+      </div>
+    `;
+
+    lista.appendChild(card);
+  });
+}
+
+function limparFormEntrada() {
+  document.getElementById("descricaoEntrada").value = "";
+  document.getElementById("valorEntrada").value = "";
+  document.getElementById("dataEntrada").value = "";
+  document.getElementById("fixaEntrada").checked
 }
